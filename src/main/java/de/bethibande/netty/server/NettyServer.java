@@ -1,8 +1,12 @@
 package de.bethibande.netty.server;
 
 import de.bethibande.netty.INettyComponent;
+import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
+import de.bethibande.netty.exceptions.UnknownChannelId;
+import de.bethibande.netty.packets.Packet;
+import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -11,7 +15,10 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 
 public class NettyServer implements INettyComponent {
 
@@ -27,6 +34,7 @@ public class NettyServer implements INettyComponent {
     private PacketManager packetManager = new PacketManager();
 
     private final HashMap<Integer, NettyChannel> channels = new HashMap<>();
+    private final HashMap<Integer, Collection<ChannelListener>> listeners = new HashMap<>();
 
     public NettyServer setPort(int port) {
         this.address = new InetSocketAddress("0.0.0.0", port);
@@ -41,6 +49,29 @@ public class NettyServer implements INettyComponent {
     public NettyServer setAddress(InetSocketAddress address) {
         this.address = address;
         return this;
+    }
+
+    @Override
+    public Collection<ChannelListener> getListenersByChannelId(int id) {
+        return listeners.get(id);
+    }
+
+    @Override
+    public NettyServer registerListener(int channelId, ChannelListener listener) {
+        if(!listeners.containsKey(channelId)) listeners.put(channelId, new ArrayList<>());
+
+        listeners.get(channelId).add(listener);
+        return this;
+    }
+
+    @Override
+    public void removeListener(int channelId, ChannelListener listener) {
+        listeners.get(channelId).remove(listener);
+    }
+
+    @Override
+    public void removeListenersByChannelId(int channelId) {
+        listeners.remove(channelId);
     }
 
     @Override
@@ -76,6 +107,11 @@ public class NettyServer implements INettyComponent {
         channels.remove(id);
     }
 
+    @Override
+    public boolean hasChannelId(int id) {
+        return this.channels.containsKey(id);
+    }
+
     public void stop() {
         try {
             bossEventLoopGroup.shutdownGracefully().sync();
@@ -85,6 +121,13 @@ public class NettyServer implements INettyComponent {
         } catch(InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public PacketFuture broadcastPacket(int channelId, Packet packet) {
+        if(!hasChannelId(channelId)) throw new UnknownChannelId("There is no channel with the id '" + channelId + "'!");
+
+        NettyChannel channel = getChannelById(channelId);
+        return channel.sendPacket(packet);
     }
 
     public void init() {
@@ -100,6 +143,7 @@ public class NettyServer implements INettyComponent {
             server.group(bossEventLoopGroup, workerEventLoopGroup)
                     .childOption(ChannelOption.TCP_NODELAY, true)
                     .childOption(ChannelOption.AUTO_READ, true)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
@@ -109,8 +153,7 @@ public class NettyServer implements INettyComponent {
                             }
                         }
                     })
-                    .option(ChannelOption.SO_BACKLOG, 128)
-                    .childOption(ChannelOption.SO_KEEPALIVE, true);
+                    .option(ChannelOption.SO_BACKLOG, 128);
 
             // Bind and start to accept incoming connections.
             future = server.bind(this.address)

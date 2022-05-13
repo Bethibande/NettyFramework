@@ -2,6 +2,7 @@ package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.packets.INetSerializable;
+import de.bethibande.netty.packets.PacketFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 
@@ -19,8 +20,6 @@ public interface NettyChannel extends ChannelHandler {
 
     void writePacket(ByteBuf buf, INetSerializable packet);
 
-    List<ChannelListener> getListeners();
-    NettyChannel registerListener(ChannelListener listener);
-    void removeListener(ChannelListener listener);
+    PacketFuture sendPacket(INetSerializable packet);
 
 }

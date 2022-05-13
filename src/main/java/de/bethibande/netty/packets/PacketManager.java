@@ -32,8 +32,10 @@ public class PacketManager {
 
         packetBuffer.resetReaderIndex();
 
-        buf.writeLong(packetBuffer.readableBytes());
+        buf.writeInt(packetBuffer.readableBytes());
         buf.writeBytes(packetBuffer);
+
+        packetBuffer.release();
     }
 
 }

@@ -11,22 +11,23 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Test {
 
     public static class TestClientHandler extends ChannelInboundHandlerAdapter {
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-            ByteBuf buf = Unpooled.buffer();
+            /*ByteBuf buf = Unpooled.buffer();
             buf.writeInt(3);
             buf.writeCharSequence("Hello World!", StandardCharsets.UTF_8);
 
             final ChannelFuture cf = ctx.writeAndFlush(buf);
             cf.addListener((ChannelFutureListener) channelFuture -> {
-                System.out.println("Sent!");
                 assert channelFuture == cf;
-                ctx.close();
-            });
+                System.out.println("Sent!");
+                //ctx.close();
+            });*/
         }
     }
 
@@ -40,12 +41,21 @@ public class Test {
         s.registerChannel(new NettyPacketChannel(4));
         s.init();
 
-        new Thread(Test::client).start();
+        //new Thread(Test::client).start();
         client();
 
         System.out.println("Stopping..");
         s.stop();
         System.out.println("Stopped!");
+    }
+
+    public static void writeMessage(ChannelFuture future, String msg) throws InterruptedException {
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeInt(ThreadLocalRandom.current().nextInt(0, 5));
+        buf.writeInt(msg.getBytes(StandardCharsets.UTF_8).length);
+        buf.writeBytes(msg.getBytes(StandardCharsets.UTF_8));
+
+        future.channel().writeAndFlush(buf);
     }
 
     public static void client() {
@@ -65,6 +75,38 @@ public class Test {
                     });
 
             ChannelFuture future = b.connect("localhost", 55556).sync();
+
+            /*ByteBuf buf = Unpooled.buffer();
+            buf.writeInt(2);
+
+            buf.writeCharSequence("Hello World2", StandardCharsets.UTF_8);
+
+            future.channel().pipeline().writeAndFlush(buf).sync();*/
+
+            writeMessage(future, "Hello World 1!");
+            writeMessage(future, "Hello World 2!");
+            writeMessage(future, "Hello World 3!");
+            writeMessage(future, "Hello World 4!");
+
+            Thread.sleep(500);
+
+            writeMessage(future, "Hello World 5!");
+
+            future.sync();
+
+            // echo server
+            /*new Thread(() -> {
+                while(true) {
+                    Scanner s = new Scanner(System.in);
+                    String in = s.nextLine();
+
+                    try {
+                        writeMessage(future, in);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).start();*/
 
             workerGroup.shutdownGracefully().sync();
             future.channel().closeFuture().sync();
