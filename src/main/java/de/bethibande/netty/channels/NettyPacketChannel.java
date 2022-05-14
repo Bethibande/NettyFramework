@@ -52,8 +52,8 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
             throw new RuntimeException("Unowned channel disconnected, channel id: '" + id + "'?");
         }
 
-        owner.getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
         owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onDisconnect(this, owner.getConnectionManager().getConnectionByAddress((InetSocketAddress) ctx.channel().remoteAddress())));
+        owner.getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
     }
 
     @Override

@@ -51,7 +51,6 @@ public class EchoServer {
 
         @Override
         public void onDisconnect(NettyChannel channel, NettyConnection connection) {
-            System.out.println("Disconnect");
             if(!names.containsKey(connection)) return;
 
             System.out.println("Log > Client disconnected: " + names.get(connection));
@@ -86,7 +85,6 @@ public class EchoServer {
 
         @Override
         public void onDisconnect(NettyChannel channel, NettyConnection connection) {
-            System.out.println("Disconnect");
             if(!names.containsKey(connection)) return;
 
             System.out.println("Log > Client disconnected: " + names.get(connection));
