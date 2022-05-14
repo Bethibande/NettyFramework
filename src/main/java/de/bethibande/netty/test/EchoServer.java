@@ -28,7 +28,6 @@ public class EchoServer {
 
         @Override
         public void onExceptionCaught(NettyChannel chanel, NettyConnection connection, Throwable cause) {
-            System.out.println("Exception caught");
             cause.printStackTrace();
         }
 
@@ -45,7 +44,7 @@ public class EchoServer {
                 names.put(connection, a.getName());
                 System.out.println("Log > New Client connected: " + a.getName());
 
-                owner.broadcastPacket(1, new MessagePacket("SERVER", "New client connected: '" + a.getName() + "'!"));
+                owner.broadcastPacket(1, new MessagePacket("SERVER", "New client connected: '" + a.getName() + "'!")).complete();
             }
         }
 
@@ -54,7 +53,7 @@ public class EchoServer {
             if(!names.containsKey(connection)) return;
 
             System.out.println("Log > Client disconnected: " + names.get(connection));
-            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!"));
+            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!")).complete();
             names.remove(connection);
         }
     }
@@ -79,7 +78,7 @@ public class EchoServer {
 
                 System.out.println("Message > [" + names.get(connection) + "] | " + m.getMessage());
 
-                owner.broadcastPacket(1, new MessagePacket(names.get(connection), m.getMessage()));
+                owner.broadcastPacket(1, new MessagePacket(names.get(connection), m.getMessage())).complete();
             }
         }
 

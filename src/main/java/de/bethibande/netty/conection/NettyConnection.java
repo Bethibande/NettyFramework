@@ -9,12 +9,15 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 
 public class NettyConnection {
 
     private final InetSocketAddress address;
     private final ChannelHandlerContext context;
     private final INettyComponent owner;
+
+    private final HashMap<String, Object> meta = new HashMap<>();
 
     public NettyConnection(InetSocketAddress address, ChannelHandlerContext context, INettyComponent owner) {
         this.address = address;
@@ -38,6 +41,10 @@ public class NettyConnection {
 
         ChannelFuture cf = this.context.writeAndFlush(buf);
         return new PacketFuture(cf);
+    }
+
+    public HashMap<String, Object> getMeta() {
+        return this.meta;
     }
 
 }

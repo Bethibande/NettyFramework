@@ -8,7 +8,9 @@ import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
 import de.bethibande.netty.exceptions.UnknownChannelId;
 import de.bethibande.netty.packets.Packet;
+import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
+import de.bethibande.netty.packets.SharedPacketFuture;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -21,6 +23,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 
 public class NettyServer implements INettyComponent {
 
@@ -131,7 +134,7 @@ public class NettyServer implements INettyComponent {
         }
     }
 
-    public void broadcastPacket(int channelId, Packet packet) {
+    public SharedPacketFuture broadcastPacket(int channelId, Packet packet) {
         if(!hasChannelId(channelId)) throw new UnknownChannelId("There is no channel with the id '" + channelId + "'!");
 
         ByteBuf buf = Unpooled.buffer();
@@ -139,10 +142,14 @@ public class NettyServer implements INettyComponent {
 
         packetManager.writePacket(buf, packet);
 
+        List<PacketFuture> futures = new ArrayList<>();
         for(NettyConnection con : connectionManager.getConnections().values()) {
             buf.resetReaderIndex();
-            con.getContext().writeAndFlush(buf);
+            ChannelFuture cf = con.getContext().writeAndFlush(buf);
+            futures.add(new PacketFuture(cf));
         }
+
+        return new SharedPacketFuture(futures.toArray(PacketFuture[]::new));
     }
 
     public void init() {
