@@ -1,7 +1,7 @@
 package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
-import de.bethibande.netty.NettyConnection;
+import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.exceptions.PacketChannelException;
 import de.bethibande.netty.exceptions.UnknownChannelId;
 import de.bethibande.netty.packets.INetSerializable;
@@ -52,8 +52,11 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
             throw new RuntimeException("Unowned channel disconnected, channel id: '" + id + "'?");
         }
 
-        owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onDisconnect(this, owner.getConnectionManager().getConnectionByAddress((InetSocketAddress) ctx.channel().remoteAddress())));
-        owner.getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
+        try {
+            owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onDisconnect(this, owner.getConnectionManager().getConnectionByAddress((InetSocketAddress) ctx.channel().remoteAddress())));
+        } finally {
+            owner.getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
+        }
     }
 
     @Override

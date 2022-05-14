@@ -1,5 +1,6 @@
-package de.bethibande.netty;
+package de.bethibande.netty.conection;
 
+import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.PacketFuture;
 import io.netty.buffer.ByteBuf;

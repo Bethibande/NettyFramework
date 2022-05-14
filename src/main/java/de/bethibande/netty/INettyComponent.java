@@ -2,6 +2,7 @@ package de.bethibande.netty;
 
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
+import de.bethibande.netty.conection.ConnectionManager;
 import de.bethibande.netty.packets.PacketManager;
 
 import java.util.Collection;

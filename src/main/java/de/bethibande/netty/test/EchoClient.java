@@ -1,6 +1,6 @@
 package de.bethibande.netty.test;
 
-import de.bethibande.netty.NettyConnection;
+import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.channels.ChannelListenerAdapter;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.channels.NettyPacketChannel;

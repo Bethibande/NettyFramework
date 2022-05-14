@@ -1,8 +1,7 @@
 package de.bethibande.netty.client;
 
-import de.bethibande.netty.ConnectionManager;
+import de.bethibande.netty.conection.ConnectionManager;
 import de.bethibande.netty.INettyComponent;
-import de.bethibande.netty.Test;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
@@ -10,10 +9,7 @@ import de.bethibande.netty.exceptions.UnknownChannelId;
 import de.bethibande.netty.packets.Packet;
 import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
-import de.bethibande.netty.server.NettyServer;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;

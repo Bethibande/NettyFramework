@@ -1,14 +1,13 @@
 package de.bethibande.netty.server;
 
-import de.bethibande.netty.ConnectionManager;
+import de.bethibande.netty.conection.ConnectionManager;
 import de.bethibande.netty.INettyComponent;
-import de.bethibande.netty.NettyConnection;
+import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
 import de.bethibande.netty.exceptions.UnknownChannelId;
 import de.bethibande.netty.packets.Packet;
-import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
@@ -22,7 +21,6 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 
 public class NettyServer implements INettyComponent {
 

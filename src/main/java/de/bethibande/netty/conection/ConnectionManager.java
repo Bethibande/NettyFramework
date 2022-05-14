@@ -1,12 +1,9 @@
-package de.bethibande.netty;
+package de.bethibande.netty.conection;
 
-import de.bethibande.netty.NettyConnection;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 public class ConnectionManager {
 
