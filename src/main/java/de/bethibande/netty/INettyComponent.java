@@ -24,4 +24,6 @@ public interface INettyComponent {
     void removeListener(int channelId, ChannelListener listener);
     void removeListenersByChannelId(int channelId);
 
+    ConnectionManager getConnectionManager();
+
 }

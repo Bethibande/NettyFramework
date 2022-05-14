@@ -26,7 +26,7 @@ public class MessagePacket extends Packet {
     @Override
     public void read(ByteBuf buf) {
         int length = buf.readInt();
-        this.name = (String) buf.readCharSequence(length, StandardCharsets.UTF_8);
+        if(length > 0) this.name = (String) buf.readCharSequence(length, StandardCharsets.UTF_8);
 
         length = buf.readInt();
         this.message = (String) buf.readCharSequence(length, StandardCharsets.UTF_8);
@@ -34,9 +34,11 @@ public class MessagePacket extends Packet {
 
     @Override
     public void write(ByteBuf buf) {
-        byte[] b = this.name.getBytes(StandardCharsets.UTF_8);
-        buf.writeInt(b.length);
-        buf.writeBytes(b);
+        byte[] b = this.name != null ? this.name.getBytes(StandardCharsets.UTF_8): null;
+        if(b != null) {
+            buf.writeInt(b.length);
+            buf.writeBytes(b);
+        } else buf.writeInt(0);
 
         b = this.message.getBytes(StandardCharsets.UTF_8);
         buf.writeInt(b.length);

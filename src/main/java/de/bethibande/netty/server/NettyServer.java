@@ -1,6 +1,8 @@
 package de.bethibande.netty.server;
 
+import de.bethibande.netty.ConnectionManager;
 import de.bethibande.netty.INettyComponent;
+import de.bethibande.netty.NettyConnection;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
@@ -9,6 +11,8 @@ import de.bethibande.netty.packets.Packet;
 import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -32,6 +36,7 @@ public class NettyServer implements INettyComponent {
     private EventLoopGroup workerEventLoopGroup;
 
     private PacketManager packetManager = new PacketManager();
+    private ConnectionManager connectionManager = new ConnectionManager();
 
     private final HashMap<Integer, NettyChannel> channels = new HashMap<>();
     private final HashMap<Integer, Collection<ChannelListener>> listeners = new HashMap<>();
@@ -49,6 +54,11 @@ public class NettyServer implements INettyComponent {
     public NettyServer setAddress(InetSocketAddress address) {
         this.address = address;
         return this;
+    }
+
+    @Override
+    public ConnectionManager getConnectionManager() {
+        return connectionManager;
     }
 
     @Override
@@ -123,11 +133,18 @@ public class NettyServer implements INettyComponent {
         }
     }
 
-    public PacketFuture broadcastPacket(int channelId, Packet packet) {
+    public void broadcastPacket(int channelId, Packet packet) {
         if(!hasChannelId(channelId)) throw new UnknownChannelId("There is no channel with the id '" + channelId + "'!");
 
-        NettyChannel channel = getChannelById(channelId);
-        return channel.sendPacket(packet);
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeInt(channelId);
+
+        packetManager.writePacket(buf, packet);
+
+        for(NettyConnection con : connectionManager.getConnections().values()) {
+            buf.resetReaderIndex();
+            con.getContext().writeAndFlush(buf);
+        }
     }
 
     public void init() {
@@ -135,8 +152,8 @@ public class NettyServer implements INettyComponent {
             System.err.println("Server already initialized!");
         }
 
-        bossEventLoopGroup = new NioEventLoopGroup();
-        workerEventLoopGroup = new NioEventLoopGroup();
+        if(bossEventLoopGroup == null) bossEventLoopGroup = new NioEventLoopGroup();
+        if(workerEventLoopGroup == null) workerEventLoopGroup = new NioEventLoopGroup();
 
         try {
             server = new ServerBootstrap();

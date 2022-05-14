@@ -5,12 +5,18 @@ import de.bethibande.netty.channels.ChannelListenerAdapter;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.channels.NettyPacketChannel;
 import de.bethibande.netty.packets.Packet;
+import de.bethibande.netty.packets.PacketManager;
 import de.bethibande.netty.packets.ReflectPacketFactory;
 import de.bethibande.netty.server.NettyServer;
 import de.bethibande.netty.test.packets.AuthPacket;
+import de.bethibande.netty.test.packets.InvalidNamePacket;
 import de.bethibande.netty.test.packets.MessagePacket;
 
+import java.util.HashMap;
+
 public class EchoServer {
+
+    public static HashMap<NettyConnection, String> names = new HashMap<>();
 
     public static class AuthListener extends ChannelListenerAdapter {
 
@@ -21,11 +27,83 @@ public class EchoServer {
         }
 
         @Override
+        public void onExceptionCaught(NettyChannel chanel, NettyConnection connection, Throwable cause) {
+            System.out.println("Exception caught");
+            cause.printStackTrace();
+        }
+
+        @Override
         public void onPacketReceived(NettyChannel channel, Packet p, NettyConnection connection) {
             if(p instanceof AuthPacket) {
-                owner.broadcastPacket(1, new MessagePacket("SERVER", "New client connected: '" + ((AuthPacket) p).getName() + "'!"));
+                AuthPacket a = (AuthPacket) p;
+
+                if(names.containsValue(a.getName()) || a.getName().equals("SERVER")) {
+                    connection.sendPacket(0, new InvalidNamePacket()).complete();
+                    return;
+                }
+
+                names.put(connection, a.getName());
+                System.out.println("Log > New Client connected: " + a.getName());
+
+                owner.broadcastPacket(1, new MessagePacket("SERVER", "New client connected: '" + a.getName() + "'!"));
             }
         }
+
+        @Override
+        public void onDisconnect(NettyChannel channel, NettyConnection connection) {
+            System.out.println("Disconnect");
+            if(!names.containsKey(connection)) return;
+
+            System.out.println("Log > Client disconnected: " + names.get(connection));
+            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!"));
+            names.remove(connection);
+        }
+    }
+
+    public static class MessageListener extends ChannelListenerAdapter {
+
+        private final NettyServer owner;
+
+        public MessageListener(NettyServer owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public void onPacketReceived(NettyChannel channel, Packet p, NettyConnection connection) {
+            if(p instanceof MessagePacket) {
+                MessagePacket m = (MessagePacket) p;
+
+                if(!names.containsKey(connection)) {
+                    System.err.println("[Error] Received message from unauthorized client!");
+                    return;
+                }
+
+                System.out.println("Message > [" + names.get(connection) + "] | " + m.getMessage());
+
+                owner.broadcastPacket(1, new MessagePacket(names.get(connection), m.getMessage()));
+            }
+        }
+
+        @Override
+        public void onDisconnect(NettyChannel channel, NettyConnection connection) {
+            System.out.println("Disconnect");
+            if(!names.containsKey(connection)) return;
+
+            System.out.println("Log > Client disconnected: " + names.get(connection));
+            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!"));
+            names.remove(connection);
+        }
+    }
+
+    public static void registerPackets(PacketManager manager) {
+        manager.registerPacket(0, AuthPacket.class);
+        manager.registerPacketFactory(AuthPacket.class, new ReflectPacketFactory<>(AuthPacket.class));
+
+        manager.registerPacket(1, MessagePacket.class);
+        manager.registerPacketFactory(MessagePacket.class, new ReflectPacketFactory<>(MessagePacket.class));
+
+        manager.registerPacket(2, InvalidNamePacket.class);
+        manager.registerPacketFactory(InvalidNamePacket.class, new ReflectPacketFactory<>(InvalidNamePacket.class));
     }
 
     public static void main(String[] args) {
@@ -34,13 +112,10 @@ public class EchoServer {
         server.registerChannel(new NettyPacketChannel(0)); // auth channel
         server.registerChannel(new NettyPacketChannel(1)); // message channel
 
-        server.getPacketManager().registerPacket(0, AuthPacket.class);
-        server.getPacketManager().registerPacketFactory(AuthPacket.class, new ReflectPacketFactory<>(AuthPacket.class));
-
-        server.getPacketManager().registerPacket(1, MessagePacket.class);
-        server.getPacketManager().registerPacketFactory(MessagePacket.class, new ReflectPacketFactory<>(MessagePacket.class));
+        registerPackets(server.getPacketManager());
 
         server.registerListener(0, new AuthListener(server));
+        server.registerListener(1, new MessageListener(server));
 
         server.init();
     }

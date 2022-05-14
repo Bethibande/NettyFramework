@@ -1,5 +1,6 @@
 package de.bethibande.netty.client;
 
+import de.bethibande.netty.ConnectionManager;
 import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.Test;
 import de.bethibande.netty.channels.ChannelListener;
@@ -38,10 +39,16 @@ public class NettyClient implements INettyComponent {
     private final HashMap<Integer, Collection<ChannelListener>> listeners = new HashMap<>();
 
     private PacketManager packetManager = new PacketManager();
+    private ConnectionManager connectionManager = new ConnectionManager();
 
     public NettyClient setAddress(InetSocketAddress address) {
         this.target = address;
         return this;
+    }
+
+    @Override
+    public ConnectionManager getConnectionManager() {
+        return connectionManager;
     }
 
     @Override
@@ -114,6 +121,7 @@ public class NettyClient implements INettyComponent {
     @Override
     public void stop() {
         try {
+            System.out.println("Stop");
             workerGroup.shutdownGracefully().sync();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {

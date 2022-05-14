@@ -2,6 +2,7 @@ package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.NettyConnection;
+import de.bethibande.netty.exceptions.PacketChannelException;
 import de.bethibande.netty.exceptions.UnknownChannelId;
 import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.Packet;
@@ -13,7 +14,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import java.nio.charset.StandardCharsets;
+import java.net.InetSocketAddress;
 
 @ChannelHandler.Sharable
 public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements NettyChannel {
@@ -34,26 +35,25 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("Connected " + ctx.channel().id());
         context = ctx;
-        this.connection = new NettyConnection(context);
+        this.connection = new NettyConnection((InetSocketAddress) ctx.channel().remoteAddress(), context, owner);
 
         if(owner == null) {
             throw new RuntimeException("Unowned channel connected, channel id '" + id + "'?");
         }
 
+        owner.getConnectionManager().registerConnection(this.connection);
         owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onConnect(this, connection));
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        System.out.println("Disconnected " + ctx.channel().id());
-
         if(owner == null) {
             throw new RuntimeException("Unowned channel disconnected, channel id: '" + id + "'?");
         }
 
-        owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onDisconnect(this, connection));
+        owner.getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
+        owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onDisconnect(this, owner.getConnectionManager().getConnectionByAddress((InetSocketAddress) ctx.channel().remoteAddress())));
     }
 
     @Override
@@ -73,34 +73,48 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
             return;
         }
 
+        if(this.context == null) this.context = ctx;
+
         //String str = (String) buf.readCharSequence(buf.readInt(), StandardCharsets.UTF_8);
         //System.out.println("Server > " + id + " | " + channelId + " > " + str + " (" + buf.readableBytes() + ")");
 
         try {
             while(buf.discardReadBytes().readableBytes() > 0) {
-                readPacket(buf);
+                Packet p = readPacket(buf);
+
+                if(p != null) {
+                    owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onPacketReceived(this, p, owner.getConnectionManager().getConnectionByAddress((InetSocketAddress) ctx.channel().remoteAddress())));
+                }
             }
         } finally {
             buf.release();
         }
     }
 
-    public void readPacket(ByteBuf buf) {
+    public Packet readPacket(ByteBuf buf) {
         if(packetId == -1) packetId = buf.readInt();
         if(length == -1L) length = buf.readInt();
 
         if(length == buf.readableBytes() || (this.buf != null && length == this.buf.readableBytes())) {
-            Class<? extends Packet> type = this.owner.getPacketManager().getPacketTypeFromId(packetId);
-            Packet packet = this.owner.getPacketManager().newInstanceOfPacket(type);
+            Class<? extends INetSerializable> type = this.owner.getPacketManager().getPacketTypeById(packetId);
 
-            this.buf = Unpooled.buffer(length);
+            if(!Packet.class.isAssignableFrom(type)) {
+                throw new PacketChannelException("Netty packet channel received packet not assignable from Packet.class!");
+            }
+
+            Packet packet = (Packet) this.owner.getPacketManager().newInstanceOfPacket(type);
+
+            if(this.buf == null) this.buf = Unpooled.buffer(length);
+
+            this.buf.writeBytes(buf);
             packet.read(this.buf);
 
             if(owner == null) {
                 throw new RuntimeException("Unowned channel packet received, channel id: '" + id + "'?");
             }
 
-            owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onPacketReceived(this, packet, connection));
+            //System.out.println(id + " " + owner.getListenersByChannelId(id));
+            //owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onPacketReceived(this, packet, owner.getConnectionManager().getConnectionByAddress()));
 
             packetId = -1;
             length = -1;
@@ -108,12 +122,14 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
             if(this.buf != null) this.buf.release();
             this.buf = null;
 
-            return;
+            return packet;
         }
 
 
-        if(this.buf == null) this.buf = Unpooled.buffer();
+        if(this.buf == null) this.buf = Unpooled.buffer(length);
         this.buf.writeBytes(buf);
+
+        return null;
     }
 
     @Override
@@ -139,7 +155,7 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
         ByteBuf buf = Unpooled.buffer();
         writePacket(buf, packet);
 
-        ChannelFuture cf = this.context.channel().writeAndFlush(buf);
+        ChannelFuture cf = this.context.pipeline().writeAndFlush(buf);
 
         return new PacketFuture(cf);
     }
