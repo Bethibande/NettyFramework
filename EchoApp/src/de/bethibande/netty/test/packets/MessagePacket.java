@@ -1,9 +1,7 @@
 package de.bethibande.netty.test.packets;
 
 import de.bethibande.netty.packets.Packet;
-import io.netty.buffer.ByteBuf;
-
-import java.nio.charset.StandardCharsets;
+import de.bethibande.netty.packets.PacketBuffer;
 
 public class MessagePacket extends Packet {
 
@@ -24,24 +22,14 @@ public class MessagePacket extends Packet {
     }
 
     @Override
-    public void read(ByteBuf buf) {
-        int length = buf.readInt();
-        if(length > 0) this.name = (String) buf.readCharSequence(length, StandardCharsets.UTF_8);
-
-        length = buf.readInt();
-        this.message = (String) buf.readCharSequence(length, StandardCharsets.UTF_8);
+    public void read(PacketBuffer buf) {
+        this.name = buf.readString();
+        this.message = buf.readString();
     }
 
     @Override
-    public void write(ByteBuf buf) {
-        byte[] b = this.name != null ? this.name.getBytes(StandardCharsets.UTF_8): null;
-        if(b != null) {
-            buf.writeInt(b.length);
-            buf.writeBytes(b);
-        } else buf.writeInt(0);
-
-        b = this.message.getBytes(StandardCharsets.UTF_8);
-        buf.writeInt(b.length);
-        buf.writeBytes(b);
+    public void write(PacketBuffer buf) {
+        buf.writeString(this.name);
+        buf.writeString(this.message);
     }
 }

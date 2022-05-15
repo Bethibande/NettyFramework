@@ -4,8 +4,8 @@ import io.netty.buffer.ByteBuf;
 
 public interface INetSerializable {
 
-    void read(ByteBuf buf);
+    void read(PacketBuffer buf);
 
-    void write(ByteBuf buf);
+    void write(PacketBuffer buf);
 
 }

@@ -6,6 +6,7 @@ import de.bethibande.netty.exceptions.PacketChannelException;
 import de.bethibande.netty.exceptions.UnknownChannelId;
 import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.Packet;
+import de.bethibande.netty.packets.PacketBuffer;
 import de.bethibande.netty.packets.PacketFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -110,7 +111,7 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
             if(this.buf == null) this.buf = Unpooled.buffer(length);
 
             this.buf.writeBytes(buf);
-            packet.read(this.buf);
+            packet.read(PacketBuffer.wrap(this.buf));
 
             if(owner == null) {
                 throw new RuntimeException("Unowned channel packet received, channel id: '" + id + "'?");

@@ -1,7 +1,7 @@
 package de.bethibande.netty.test.packets;
 
 import de.bethibande.netty.packets.Packet;
-import io.netty.buffer.ByteBuf;
+import de.bethibande.netty.packets.PacketBuffer;
 
 import java.nio.charset.StandardCharsets;
 
@@ -18,13 +18,13 @@ public class AuthPacket extends Packet {
     }
 
     @Override
-    public void read(ByteBuf buf) {
+    public void read(PacketBuffer buf) {
         int length = buf.readInt();
         name = (String) buf.readCharSequence(length, StandardCharsets.UTF_8);
     }
 
     @Override
-    public void write(ByteBuf buf) {
+    public void write(PacketBuffer buf) {
         byte[] b = this.name.getBytes(StandardCharsets.UTF_8);
 
         buf.writeInt(b.length);

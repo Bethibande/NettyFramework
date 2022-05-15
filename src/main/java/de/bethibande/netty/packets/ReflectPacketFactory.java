@@ -2,7 +2,7 @@ package de.bethibande.netty.packets;
 
 import de.bethibande.netty.reflect.ClassUtil;
 
-public class ReflectPacketFactory<T extends Packet> implements IPacketFactory<T> {
+public class ReflectPacketFactory<T extends INetSerializable> implements IPacketFactory<T> {
 
     private final Class<T> type;
 

@@ -36,7 +36,7 @@ public class PacketManager {
 
     public void writePacket(ByteBuf buf, INetSerializable packet) {
         ByteBuf packetBuffer = Unpooled.buffer();
-        packet.write(packetBuffer);
+        packet.write(PacketBuffer.wrap(packetBuffer));
 
         packetBuffer.resetReaderIndex();
 
