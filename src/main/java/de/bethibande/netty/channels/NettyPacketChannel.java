@@ -63,19 +63,6 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf buf = (ByteBuf) msg;
-        int channelId = buf.readInt();
-
-        if (channelId != id) {
-            if(ctx.pipeline().last() == this) {
-                buf.release();
-                throw new UnknownChannelId("There is no channel with the id '" + channelId + "'!");
-            }
-
-            buf.resetReaderIndex();
-            ctx.fireChannelRead(msg);
-
-            return;
-        }
 
         if(this.context == null) this.context = ctx;
 
@@ -84,6 +71,20 @@ public class NettyPacketChannel extends ChannelInboundHandlerAdapter implements 
 
         try {
             while(buf.discardReadBytes().readableBytes() > 0) {
+                int channelId = packetId == -1 ? buf.readInt(): id;
+
+                if (channelId != id) {
+                    if(ctx.pipeline().last() == this) {
+                        buf.release();
+                        throw new UnknownChannelId("There is no channel with the id '" + channelId + "'!");
+                    }
+
+                    buf.resetReaderIndex();
+                    ctx.fireChannelRead(msg);
+
+                    return;
+                }
+
                 Packet p = readPacket(buf);
 
                 if(p != null) {

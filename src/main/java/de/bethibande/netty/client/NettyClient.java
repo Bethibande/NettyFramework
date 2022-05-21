@@ -117,7 +117,6 @@ public class NettyClient implements INettyComponent {
     @Override
     public void stop() {
         try {
-            System.out.println("Stop");
             workerGroup.shutdownGracefully().sync();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
