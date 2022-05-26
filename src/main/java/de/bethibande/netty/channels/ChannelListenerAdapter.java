@@ -1,27 +1,12 @@
 package de.bethibande.netty.channels;
 
 import de.bethibande.netty.conection.NettyConnection;
-import de.bethibande.netty.packets.Packet;
 
-public class ChannelListenerAdapter implements ChannelListener {
-
-    @Override
-    public void onConnect(NettyChannel channel, NettyConnection connection) {
-
-    }
+public abstract class ChannelListenerAdapter implements ChannelListener {
 
     @Override
-    public void onPacketReceived(NettyChannel channel, Packet p, NettyConnection connection) {
-
-    }
-
-    @Override
-    public void onDisconnect(NettyChannel channel, NettyConnection connection) {
-
-    }
-
-    @Override
-    public void onExceptionCaught(NettyChannel chanel, NettyConnection connection, Throwable cause) {
+    public void onExceptionCaught(NettyChannel channel, NettyConnection connection, Throwable cause) {
+        System.err.println("Exception caught in channel '" + channel.getId() + "'!");
         cause.printStackTrace();
     }
 }

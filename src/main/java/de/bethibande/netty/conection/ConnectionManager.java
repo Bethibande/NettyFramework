@@ -18,11 +18,7 @@ public class ConnectionManager {
     }
 
     public NettyConnection getConnectionByContext(ChannelHandlerContext ctx) {
-        for(NettyConnection con : connections.values()) {
-            if(con.getContext() == ctx) return con;
-        }
-
-        return null;
+        return connections.get((InetSocketAddress) ctx.channel().remoteAddress());
     }
 
     public NettyConnection getConnectionByAddress(InetSocketAddress address) {

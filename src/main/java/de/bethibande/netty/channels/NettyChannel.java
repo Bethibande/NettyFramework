@@ -1,14 +1,10 @@
 package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
-import de.bethibande.netty.packets.INetSerializable;
-import de.bethibande.netty.packets.PacketFuture;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 
-import java.util.List;
-
-public interface NettyChannel extends ChannelHandler {
+public interface NettyChannel {
 
     int getId();
 
@@ -18,8 +14,6 @@ public interface NettyChannel extends ChannelHandler {
      */
     void setOwner(INettyComponent owner);
 
-    void writePacket(ByteBuf buf, INetSerializable packet);
-
-    PacketFuture sendPacket(INetSerializable packet);
-
+    void channelRead(ChannelHandlerContext ctx, ByteBuf buf) throws Exception;
+    void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception;
 }

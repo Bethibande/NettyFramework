@@ -4,6 +4,8 @@ import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.conection.ConnectionManager;
 import de.bethibande.netty.packets.PacketManager;
+import de.bethibande.netty.pipeline.NettyPipeline;
+import io.netty.channel.ChannelHandlerContext;
 
 import java.util.Collection;
 
@@ -11,6 +13,15 @@ public interface INettyComponent {
 
     void init();
     void stop();
+
+    NettyPipeline getPipeline();
+    void setPipeline(NettyPipeline pipeline);
+
+    void onConnect(ChannelHandlerContext ctx);
+    void onDisconnect(ChannelHandlerContext ctx);
+
+    INettyComponent registerConnectionListener(ConnectionListener listener);
+    INettyComponent unregisterConnectionListener(ConnectionListener listener);
 
     INettyComponent registerChannel(NettyChannel channel);
     NettyChannel getChannelById(int id);

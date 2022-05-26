@@ -18,6 +18,11 @@ public class ClassUtil {
     }
 
     public static <T> T createClassInstance(Class<T> type) {
+        if(type.getConstructors().length <= 0) {
+            System.err.println("[Netty Error] Constructorless class " + type);
+            return null;
+        }
+
         Constructor<T> con = (Constructor<T>) type.getConstructors()[0];
         Object[] parameters = new Object[con.getParameters().length];
         con.setAccessible(true);

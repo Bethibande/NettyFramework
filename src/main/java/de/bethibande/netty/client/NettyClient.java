@@ -1,27 +1,26 @@
 package de.bethibande.netty.client;
 
+import de.bethibande.netty.ConnectionListener;
 import de.bethibande.netty.conection.ConnectionManager;
 import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
+import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
-import de.bethibande.netty.exceptions.UnknownChannelId;
-import de.bethibande.netty.packets.Packet;
+import de.bethibande.netty.exceptions.UnknownChannelIdException;
+import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
+import de.bethibande.netty.pipeline.NettyPipeline;
+import de.bethibande.netty.pipeline.PipelineChannel;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
+import java.util.*;
 
 public class NettyClient implements INettyComponent {
 
@@ -33,13 +32,57 @@ public class NettyClient implements INettyComponent {
 
     private final HashMap<Integer, NettyChannel> channels = new HashMap<>();
     private final HashMap<Integer, Collection<ChannelListener>> listeners = new HashMap<>();
+    private final LinkedList<ConnectionListener> connectionListeners = new LinkedList<>();
 
-    private PacketManager packetManager = new PacketManager();
+    private PacketManager packetManager = new PacketManager(this);
     private ConnectionManager connectionManager = new ConnectionManager();
+    private NettyPipeline pipeline = new NettyPipeline(this);
+
+    public NettyClient() {
+        pipeline.addPipelineChannel(new PipelineChannel(this));
+    }
 
     public NettyClient setAddress(InetSocketAddress address) {
         this.target = address;
         return this;
+    }
+
+    @Override
+    public INettyComponent registerConnectionListener(ConnectionListener listener) {
+        connectionListeners.add(listener);
+        return this;
+    }
+
+    @Override
+    public INettyComponent unregisterConnectionListener(ConnectionListener listener) {
+        connectionListeners.remove(listener);
+        return this;
+    }
+
+    @Override
+    public NettyPipeline getPipeline() {
+        return pipeline;
+    }
+
+    @Override
+    public void setPipeline(NettyPipeline pipeline) {
+        this.pipeline = pipeline;
+    }
+
+    @Override
+    public void onConnect(ChannelHandlerContext ctx) {
+        NettyConnection connection = new NettyConnection((InetSocketAddress) ctx.channel().remoteAddress(), ctx, this);
+
+        getConnectionManager().registerConnection(connection);
+
+        connectionListeners.forEach(listener -> listener.onConnect(connection));
+    }
+
+    @Override
+    public void onDisconnect(ChannelHandlerContext ctx) {
+        connectionListeners.forEach(listener -> listener.onDisconnect(connectionManager.getConnectionByContext(ctx)));
+
+        getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
     }
 
     @Override
@@ -95,7 +138,7 @@ public class NettyClient implements INettyComponent {
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
-                            for(NettyChannel channel : channels.values()) {
+                            for(PipelineChannel channel : pipeline.getPipelineChannels()) {
                                 ch.pipeline().addLast(channel);
                             }
                         }
@@ -107,11 +150,13 @@ public class NettyClient implements INettyComponent {
         }
     }
 
-    public PacketFuture sendPacket(int channelId, Packet packet) {
-        if(!hasChannelId(channelId)) throw new UnknownChannelId("There is no channel with the id '" + channelId + "'!");
+    public PacketFuture sendPacket(int channelId, INetSerializable packet) {
+        if(!hasChannelId(channelId)) throw new UnknownChannelIdException("There is no channel with the id '" + channelId + "'!");
 
-        NettyChannel channel = getChannelById(channelId);
-        return channel.sendPacket(packet);
+        Optional<NettyConnection> connectionOptional = connectionManager.getConnections().values().stream().findAny();
+        NettyConnection connection = connectionOptional.orElseThrow(() -> new RuntimeException("Sending packet before establishing a connection!"));
+
+        return connection.sendPacket(1, packet);
     }
 
     @Override

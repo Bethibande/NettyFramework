@@ -1,5 +1,6 @@
 package de.bethibande.netty.test;
 
+import de.bethibande.netty.ConnectionListenerAdapter;
 import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.channels.ChannelListenerAdapter;
 import de.bethibande.netty.channels.NettyChannel;
@@ -18,14 +19,15 @@ public class EchoClient {
     public static String name;
     public static NettyClient client;
 
-    public static class AuthListener extends ChannelListenerAdapter {
+    public static class ConnectionHandler extends ConnectionListenerAdapter {
 
         @Override
-        public void onConnect(NettyChannel channel, NettyConnection connection) {
-            System.out.println("Connected!");
-
+        public void onConnect(NettyConnection connection) {
             connection.sendPacket(0, new AuthPacket(name)).complete();
         }
+    }
+
+    public static class AuthListener extends ChannelListenerAdapter {
 
         @Override
         public void onPacketReceived(NettyChannel channel, Packet p, NettyConnection connection) {
@@ -33,11 +35,6 @@ public class EchoClient {
                 System.err.println("[Error] Couldn't connect to server, invalid name!");
                 client.stop();
             }
-        }
-
-        @Override
-        public void onDisconnect(NettyChannel channel, NettyConnection connection) {
-            System.out.println("Disconnected!");
         }
     }
 
@@ -67,8 +64,9 @@ public class EchoClient {
 
         EchoServer.registerPackets(client.getPacketManager());
 
-        client.registerListener(0, new AuthListener());
-        client.registerListener(1, new MessageListener());
+        client.registerListener(0, new AuthListener())
+                .registerListener(1, new MessageListener())
+                .registerConnectionListener(new ConnectionHandler());
 
 
         // input name

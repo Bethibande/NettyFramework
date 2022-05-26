@@ -1,5 +1,7 @@
 package de.bethibande.netty.test;
 
+import de.bethibande.netty.ConnectionListener;
+import de.bethibande.netty.ConnectionListenerAdapter;
 import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.channels.ChannelListenerAdapter;
 import de.bethibande.netty.channels.NettyChannel;
@@ -17,6 +19,24 @@ import java.util.HashMap;
 public class EchoServer {
 
     public static HashMap<NettyConnection, String> names = new HashMap<>();
+
+    public static class ConnectionHandler extends ConnectionListenerAdapter {
+
+        private final NettyServer owner;
+
+        public ConnectionHandler(NettyServer owner) {
+            this.owner = owner;
+        }
+
+        @Override
+        public void onDisconnect(NettyConnection connection) {
+            if(!names.containsKey(connection)) return;
+
+            System.out.println("Log > Client disconnected: " + names.get(connection));
+            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!")).complete();
+            names.remove(connection);
+        }
+    }
 
     public static class AuthListener extends ChannelListenerAdapter {
 
@@ -47,15 +67,6 @@ public class EchoServer {
                 owner.broadcastPacket(1, new MessagePacket("SERVER", "New client connected: '" + a.getName() + "'!")).complete();
             }
         }
-
-        @Override
-        public void onDisconnect(NettyChannel channel, NettyConnection connection) {
-            if(!names.containsKey(connection)) return;
-
-            System.out.println("Log > Client disconnected: " + names.get(connection));
-            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!")).complete();
-            names.remove(connection);
-        }
     }
 
     public static class MessageListener extends ChannelListenerAdapter {
@@ -81,15 +92,6 @@ public class EchoServer {
                 owner.broadcastPacket(1, new MessagePacket(names.get(connection), m.getMessage())).complete();
             }
         }
-
-        @Override
-        public void onDisconnect(NettyChannel channel, NettyConnection connection) {
-            if(!names.containsKey(connection)) return;
-
-            System.out.println("Log > Client disconnected: " + names.get(connection));
-            owner.broadcastPacket(1, new MessagePacket("SERVER", "Client disconnected: '" + names.get(connection) + "'!"));
-            names.remove(connection);
-        }
     }
 
     public static void registerPackets(PacketManager manager) {
@@ -111,8 +113,9 @@ public class EchoServer {
 
         registerPackets(server.getPacketManager());
 
-        server.registerListener(0, new AuthListener(server));
-        server.registerListener(1, new MessageListener(server));
+        server.registerListener(0, new AuthListener(server))
+                .registerListener(1, new MessageListener(server))
+                .registerConnectionListener(new ConnectionHandler(server));
 
         server.init();
     }
