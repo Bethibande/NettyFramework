@@ -21,6 +21,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class NettyClient implements INettyComponent {
 
@@ -40,6 +41,10 @@ public class NettyClient implements INettyComponent {
 
     public NettyClient() {
         pipeline.addPipelineChannel(new PipelineChannel(this));
+    }
+
+    public InetSocketAddress getBindAddress() {
+        return target;
     }
 
     public NettyClient setAddress(InetSocketAddress address) {
@@ -162,7 +167,7 @@ public class NettyClient implements INettyComponent {
     @Override
     public void stop() {
         try {
-            workerGroup.shutdownGracefully().sync();
+            workerGroup.shutdownGracefully(0L, 2L, TimeUnit.SECONDS).await();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();

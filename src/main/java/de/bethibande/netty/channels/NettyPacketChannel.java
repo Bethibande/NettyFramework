@@ -2,13 +2,13 @@ package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.exceptions.PacketChannelException;
+import de.bethibande.netty.exceptions.PacketReadException;
 import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.Packet;
 import de.bethibande.netty.packets.PacketBuffer;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 public class NettyPacketChannel implements NettyChannel {
@@ -28,6 +28,7 @@ public class NettyPacketChannel implements NettyChannel {
 
         int packetId = buf.readInt();
         Class<? extends INetSerializable> packetType = owner.getPacketManager().getPacketTypeById(packetId);
+        if(packetType == null) throw new PacketReadException("Unable to read packet, unknown packet id: '" + packetId + "' in channel '" + id + "'");
 
         if(!Packet.class.isAssignableFrom(packetType)) {
             throw new PacketChannelException("Netty packet channel received packet not assignable from Packet.class!");
@@ -47,7 +48,14 @@ public class NettyPacketChannel implements NettyChannel {
         }
 
         try {
-            owner.getListenersByChannelId(id).forEach(channelListener -> channelListener.onExceptionCaught(this, owner.getConnectionManager().getConnectionByContext(ctx), cause));
+            Collection<ChannelListener> listeners = owner.getListenersByChannelId(id);
+            if(listeners == null || listeners.isEmpty()) {
+                System.err.println("Exception thrown in Channel without channel listeners!");
+                cause.printStackTrace();
+                return;
+            }
+
+            listeners.forEach(channelListener -> channelListener.onExceptionCaught(this, owner.getConnectionManager().getConnectionByContext(ctx), cause));
         } finally {
             ctx.close();
         }

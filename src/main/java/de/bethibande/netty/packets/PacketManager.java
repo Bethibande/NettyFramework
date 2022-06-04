@@ -15,11 +15,6 @@ public class PacketManager {
 
     private final INettyComponent owner;
 
-    private Integer channelId = null;
-    //private Integer packetId = null;
-    private Integer length = null;
-    private ByteBuf read = null;
-
     public PacketManager(INettyComponent owner) {
         this.owner = owner;
     }
@@ -29,46 +24,7 @@ public class PacketManager {
     }
 
     public void read(ChannelHandlerContext ctx, ByteBuf buf) throws Exception {
-        if(channelId == null) {
-            channelId = buf.readInt();
-            length = buf.readInt();
-        }
-
-        if(length == null) return;
-
-        if(read == null) {
-            if(length == buf.readableBytes()) read = buf.discardReadBytes();
-            if(length > buf.readableBytes()) {
-                read = Unpooled.buffer();
-                read.writeBytes(buf);
-            }
-            if(length < buf.readableBytes()) {
-                read = Unpooled.buffer();
-                read.writeBytes(buf, length);
-            }
-        }
-
-        if(read != null) {
-            if(length - read.readableBytes() > buf.readableBytes()) read = read.writeBytes(buf);
-            if(length - read.readableBytes() < buf.readableBytes()) read = read.writeBytes(buf, length - read.readableBytes());
-        }
-
-        if(read == null) return;
-
-        if(read.readableBytes() >= length) {
-
-            if(!owner.hasChannelId(channelId)) throw new UnknownChannelIdException("There is no such channel with the id '" + channelId + "'!");
-
-            try {
-                owner.getChannelById(channelId).channelRead(ctx, read);
-            } finally {
-                read.release();
-
-                read = null;
-                length = null;
-                channelId = null;
-            }
-        }
+        owner.getConnectionManager().getConnectionByContext(ctx).getReader().read(ctx, buf);
     }
 
     public void registerPacket(int id, Class<? extends INetSerializable> type) {

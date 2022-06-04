@@ -9,20 +9,28 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.net.InetSocketAddress;
-import java.util.HashMap;
 
 public class NettyConnection {
 
     private final InetSocketAddress address;
     private final ChannelHandlerContext context;
     private final INettyComponent owner;
+    private final PacketReader reader = new PacketReader(this);
 
-    private final HashMap<String, Object> meta = new HashMap<>();
+    private final ConnectionMeta meta = new ConnectionMeta();
 
     public NettyConnection(InetSocketAddress address, ChannelHandlerContext context, INettyComponent owner) {
         this.address = address;
         this.context = context;
         this.owner = owner;
+    }
+
+    public INettyComponent getOwner() {
+        return owner;
+    }
+
+    public PacketReader getReader() {
+        return reader;
     }
 
     public InetSocketAddress getAddress() {
@@ -43,7 +51,7 @@ public class NettyConnection {
         return new PacketFuture(cf);
     }
 
-    public HashMap<String, Object> getMeta() {
+    public ConnectionMeta getMeta() {
         return this.meta;
     }
 

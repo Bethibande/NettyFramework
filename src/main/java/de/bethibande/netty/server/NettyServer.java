@@ -50,6 +50,10 @@ public class NettyServer implements INettyComponent {
         return this;
     }
 
+    public InetSocketAddress getBindAddress() {
+        return address;
+    }
+
     public NettyServer setBindAddress(String address) {
         this.address = new InetSocketAddress(address, this.address.getPort());
         return this;
