@@ -1,19 +1,13 @@
 package de.bethibande.netty.pipeline;
 
-import de.bethibande.netty.INettyComponent;
+import de.bethibande.netty.conection.NettyConnection;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 
-@ChannelHandler.Sharable
-public class PipelineChannel extends ChannelInboundHandlerAdapter {
+import java.net.SocketAddress;
+
+public abstract class PipelineChannel {
 
     private final NettyPipeline owner;
-
-    public PipelineChannel(INettyComponent owner) {
-        this.owner = owner.getPipeline();
-    }
 
     public PipelineChannel(NettyPipeline owner) {
         this.owner = owner;
@@ -23,26 +17,10 @@ public class PipelineChannel extends ChannelInboundHandlerAdapter {
         return owner;
     }
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        owner.getOwner().onConnect(ctx);
+    public abstract void onDataRead(SocketAddress context, ByteBuf data) throws Exception;
+
+    public ByteBuf onDataWrite(NettyConnection connection, ByteBuf data) throws Exception {
+        return data;
     }
 
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        owner.getOwner().onDisconnect(ctx);
-    }
-
-    @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        owner.getOwner().getPacketManager().read(ctx, (ByteBuf) msg);
-        //ChannelPacket cp = owner.getOwner().getPacketManager().read((ByteBuf) msg);
-
-        //if(cp != null) owner.getOwner().onPacketReceived(cp.getChannelId(), cp.getPacket());
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        cause.printStackTrace();
-    }
 }

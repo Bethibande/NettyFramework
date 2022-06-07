@@ -13,6 +13,8 @@ import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
 import de.bethibande.netty.pipeline.NettyPipeline;
 import de.bethibande.netty.pipeline.PipelineChannel;
+import de.bethibande.netty.pipeline.PipelineChannelWrapper;
+import de.bethibande.netty.pipeline.StandardPipelineChannel;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -40,7 +42,7 @@ public class NettyClient implements INettyComponent {
     private NettyPipeline pipeline = new NettyPipeline(this);
 
     public NettyClient() {
-        pipeline.addPipelineChannel(new PipelineChannel(this));
+        pipeline.addPipelineChannel(new StandardPipelineChannel(pipeline));
     }
 
     public InetSocketAddress getBindAddress() {
@@ -75,19 +77,17 @@ public class NettyClient implements INettyComponent {
     }
 
     @Override
-    public void onConnect(ChannelHandlerContext ctx) {
-        NettyConnection connection = new NettyConnection((InetSocketAddress) ctx.channel().remoteAddress(), ctx, this);
-
+    public void onConnect(NettyConnection connection) {
         getConnectionManager().registerConnection(connection);
 
         connectionListeners.forEach(listener -> listener.onConnect(connection));
     }
 
     @Override
-    public void onDisconnect(ChannelHandlerContext ctx) {
-        connectionListeners.forEach(listener -> listener.onDisconnect(connectionManager.getConnectionByContext(ctx)));
+    public void onDisconnect(NettyConnection connection) {
+        connectionListeners.forEach(listener -> listener.onDisconnect(connection));
 
-        getConnectionManager().unregisterConnection((InetSocketAddress) ctx.channel().remoteAddress());
+        getConnectionManager().unregisterConnection(connection.getAddress());
     }
 
     @Override
@@ -137,14 +137,14 @@ public class NettyClient implements INettyComponent {
             b = new Bootstrap();
             b.group(workerGroup)
                     .channel(NioSocketChannel.class)
-                    .option(ChannelOption.AUTO_READ, true)
+                    .option(ChannelOption.AUTO_READ, false)
                     .option(ChannelOption.SO_KEEPALIVE, true)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
                             for(PipelineChannel channel : pipeline.getPipelineChannels()) {
-                                ch.pipeline().addLast(channel);
+                                ch.pipeline().addLast(new PipelineChannelWrapper(channel));
                             }
                         }
                     });

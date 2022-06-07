@@ -1,10 +1,9 @@
 package de.bethibande.netty.packets;
 
 import de.bethibande.netty.INettyComponent;
-import de.bethibande.netty.exceptions.UnknownChannelIdException;
+import de.bethibande.netty.conection.NettyConnection;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
 
 import java.util.HashMap;
 
@@ -23,12 +22,13 @@ public class PacketManager {
         return owner;
     }
 
-    public void read(ChannelHandlerContext ctx, ByteBuf buf) throws Exception {
-        owner.getConnectionManager().getConnectionByContext(ctx).getReader().read(ctx, buf);
+    public void read(NettyConnection con, ByteBuf buf) throws Exception {
+        con.getReader().read(buf);
     }
 
     public void registerPacket(int id, Class<? extends INetSerializable> type) {
         packetTypes.put(id, type);
+        packetFactories.put(type, new ReflectPacketFactory<>(type));
     }
 
     public Class<? extends INetSerializable> getPacketTypeById(int id) {
@@ -44,6 +44,7 @@ public class PacketManager {
     }
 
     public <T extends INetSerializable> void registerPacketFactory(Class<T> type, IPacketFactory<T> factory) {
+        packetFactories.remove(type);
         packetFactories.put(type, factory);
     }
 

@@ -11,9 +11,9 @@ import de.bethibande.netty.exceptions.UnknownChannelIdException;
 import de.bethibande.netty.packets.*;
 import de.bethibande.netty.pipeline.NettyPipeline;
 import de.bethibande.netty.pipeline.PipelineChannel;
+import de.bethibande.netty.pipeline.PipelineChannelWrapper;
+import de.bethibande.netty.pipeline.StandardPipelineChannel;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -42,7 +42,7 @@ public class NettyServer implements INettyComponent {
     private final LinkedList<ConnectionListener> connectionListeners = new LinkedList<>();
 
     public NettyServer() {
-        pipeline.addPipelineChannel(new PipelineChannel(this));
+        pipeline.addPipelineChannel(new StandardPipelineChannel(pipeline));
     }
 
     public NettyServer setPort(int port) {
@@ -138,17 +138,14 @@ public class NettyServer implements INettyComponent {
     }
 
     @Override
-    public void onConnect(ChannelHandlerContext ctx) {
-        NettyConnection connection = new NettyConnection((InetSocketAddress) ctx.channel().remoteAddress(), ctx, this);
-
+    public void onConnect(NettyConnection connection) {
         getConnectionManager().registerConnection(connection);
 
         connectionListeners.forEach(listener -> listener.onConnect(connection));
     }
 
     @Override
-    public void onDisconnect(ChannelHandlerContext ctx) {
-        NettyConnection connection = connectionManager.getConnectionByContext(ctx);
+    public void onDisconnect(NettyConnection connection) {
         getConnectionManager().unregisterConnection(connection.getAddress());
 
         connectionListeners.forEach(listener -> listener.onDisconnect(connection));
@@ -183,17 +180,19 @@ public class NettyServer implements INettyComponent {
     public SharedPacketFuture broadcastPacket(int channelId, INetSerializable packet) {
         if(!hasChannelId(channelId)) throw new UnknownChannelIdException("There is no channel with the id '" + channelId + "'!");
 
-        ByteBuf buf = Unpooled.buffer();
-        buf.writeInt(channelId);
+        //ByteBuf buf = Unpooled.buffer();
+        //buf.writeInt(channelId);
 
-        packetManager.writePacket(buf, packet);
+        //packetManager.writePacket(buf, packet);
 
-        List<PacketFuture> futures = new ArrayList<>();
+        List<PacketFuture> futures = new ArrayList<>(); // TODO: improve performance
         for(NettyConnection con : connectionManager.getConnections().values()) {
-            buf.resetReaderIndex();
+            //buf.resetReaderIndex();
 
-            ChannelFuture cf = con.getContext().writeAndFlush(buf);
-            futures.add(new PacketFuture(cf));
+            //ChannelFuture cf = con.getContext().writeAndFlush(buf);
+            //futures.add(new PacketFuture(cf));
+            PacketFuture pf = con.sendPacket(channelId, packet);
+            futures.add(pf);
         }
 
         return new SharedPacketFuture(futures.toArray(PacketFuture[]::new));
@@ -211,14 +210,14 @@ public class NettyServer implements INettyComponent {
             server = new ServerBootstrap();
             server.group(bossEventLoopGroup, workerEventLoopGroup)
                     .childOption(ChannelOption.TCP_NODELAY, true)
-                    .childOption(ChannelOption.AUTO_READ, true)
+                    .childOption(ChannelOption.AUTO_READ, false)
                     .childOption(ChannelOption.SO_KEEPALIVE, true)
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
                             for(PipelineChannel channel : pipeline.getPipelineChannels()) {
-                                ch.pipeline().addLast(channel);
+                                ch.pipeline().addLast(new PipelineChannelWrapper(channel));
                             }
                         }
                     })

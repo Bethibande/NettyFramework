@@ -1,6 +1,7 @@
 package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
+import de.bethibande.netty.conection.NettyConnection;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -14,6 +15,6 @@ public interface NettyChannel {
      */
     void setOwner(INettyComponent owner);
 
-    void channelRead(ChannelHandlerContext ctx, ByteBuf buf) throws Exception;
-    void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception;
+    void channelRead(NettyConnection con, ByteBuf buf) throws Exception;
+    void exceptionCaught(NettyConnection con, Throwable cause) throws Exception;
 }

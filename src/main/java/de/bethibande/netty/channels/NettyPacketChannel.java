@@ -1,6 +1,7 @@
 package de.bethibande.netty.channels;
 
 import de.bethibande.netty.INettyComponent;
+import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.exceptions.PacketChannelException;
 import de.bethibande.netty.exceptions.PacketReadException;
 import de.bethibande.netty.packets.INetSerializable;
@@ -22,7 +23,7 @@ public class NettyPacketChannel implements NettyChannel {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, ByteBuf buf) throws Exception {
+    public void channelRead(NettyConnection con, ByteBuf buf) throws Exception {
         Collection<ChannelListener> listeners = owner.getListenersByChannelId(id);
         if(listeners == null) return;
 
@@ -38,27 +39,23 @@ public class NettyPacketChannel implements NettyChannel {
 
         packet.read(PacketBuffer.wrap(buf.discardReadBytes().resetReaderIndex()));
 
-        listeners.forEach(channelListener -> channelListener.onPacketReceived(this, packet, owner.getConnectionManager().getConnectionByContext(ctx)));
+        listeners.forEach(channelListener -> channelListener.onPacketReceived(this, packet, con));
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(NettyConnection con, Throwable cause) throws Exception {
         if(owner == null) {
             throw new RuntimeException("Unowned channel exception caught, channel id: '" + id + "'?");
         }
 
-        try {
-            Collection<ChannelListener> listeners = owner.getListenersByChannelId(id);
-            if(listeners == null || listeners.isEmpty()) {
-                System.err.println("Exception thrown in Channel without channel listeners!");
-                cause.printStackTrace();
-                return;
-            }
-
-            listeners.forEach(channelListener -> channelListener.onExceptionCaught(this, owner.getConnectionManager().getConnectionByContext(ctx), cause));
-        } finally {
-            ctx.close();
+        Collection<ChannelListener> listeners = owner.getListenersByChannelId(id);
+        if (listeners == null || listeners.isEmpty()) {
+            System.err.println("Exception thrown in Channel without channel listeners!");
+            cause.printStackTrace();
+            return;
         }
+
+        listeners.forEach(channelListener -> channelListener.onExceptionCaught(this, con, cause));
     }
 
     @Override

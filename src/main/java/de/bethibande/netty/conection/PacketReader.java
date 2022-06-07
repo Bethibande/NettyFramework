@@ -21,46 +21,54 @@ public class PacketReader {
         return owner;
     }
 
-    public void read(ChannelHandlerContext ctx, ByteBuf buf) throws Exception {
-        if(channelId == null) {
-            channelId = buf.readInt();
-            length = buf.readInt();
+    public void read(ByteBuf buf) throws Exception {
+        while(buf.readableBytes() > 0) {
+            if (channelId == null) {
+                channelId = buf.readInt();
+                length = buf.readInt();
+            }
+
+            if (length == null) return;
+
+            if (read == null) {
+                if (length == buf.readableBytes()) read = buf.discardReadBytes();
+                if (length > buf.readableBytes()) {
+                    read = Unpooled.buffer();
+                    read.writeBytes(buf);
+                }
+                if (length < buf.readableBytes()) {
+                    read = Unpooled.buffer();
+                    read.writeBytes(buf, length);
+                }
+            }
+
+            if (read != null) {
+                if (length - read.readableBytes() > buf.readableBytes()) read = read.writeBytes(buf);
+                if (length - read.readableBytes() < buf.readableBytes())
+                    read = read.writeBytes(buf, length - read.readableBytes());
+            }
+
+            if (read == null) return;
+
+            if (read.readableBytes() >= length) {
+
+                if (!owner.getOwner().hasChannelId(channelId))
+                    throw new UnknownChannelIdException("There is no such channel with the id '" + channelId + "'!");
+
+                try {
+                    owner.getOwner().getChannelById(channelId).channelRead(owner, read);
+                } finally {
+                    read.release();
+
+                    read = null;
+                    length = null;
+                    channelId = null;
+                }
+            }
         }
 
-        if(length == null) return;
-
-        if(read == null) {
-            if(length == buf.readableBytes()) read = buf.discardReadBytes();
-            if(length > buf.readableBytes()) {
-                read = Unpooled.buffer();
-                read.writeBytes(buf);
-            }
-            if(length < buf.readableBytes()) {
-                read = Unpooled.buffer();
-                read.writeBytes(buf, length);
-            }
-        }
-
-        if(read != null) {
-            if(length - read.readableBytes() > buf.readableBytes()) read = read.writeBytes(buf);
-            if(length - read.readableBytes() < buf.readableBytes()) read = read.writeBytes(buf, length - read.readableBytes());
-        }
-
-        if(read == null) return;
-
-        if(read.readableBytes() >= length) {
-
-            if(!owner.getOwner().hasChannelId(channelId)) throw new UnknownChannelIdException("There is no such channel with the id '" + channelId + "'!");
-
-            try {
-                owner.getOwner().getChannelById(channelId).channelRead(ctx, read);
-            } finally {
-                read.release();
-
-                read = null;
-                length = null;
-                channelId = null;
-            }
+        if(buf.refCnt() > 0) {
+            buf.release();
         }
     }
 

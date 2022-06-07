@@ -26,7 +26,7 @@ public class NettyPipeline {
         pipelineChannels.addFirst(channel);
     }
 
-    public void removePipelineChannel(PipelineChannel channel) {
+    public void removePipelineChannel(PipelineChannelWrapper channel) {
         pipelineChannels.remove(channel);
     }
 

@@ -29,17 +29,4 @@ public class ConnectionManager {
         connections.remove(address);
     }
 
-    public void unregisterConnection(ChannelHandlerContext ctx) {
-        NettyConnection rCon = null;
-
-        for(NettyConnection con : connections.values()) {
-            if(con.getContext() == ctx) {
-                rCon = con;
-                break;
-            }
-        }
-
-        if(rCon != null) connections.remove(rCon);
-    }
-
 }

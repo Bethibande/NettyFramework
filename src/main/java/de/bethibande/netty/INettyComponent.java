@@ -3,6 +3,7 @@ package de.bethibande.netty;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.conection.ConnectionManager;
+import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.packets.PacketManager;
 import de.bethibande.netty.pipeline.NettyPipeline;
 import io.netty.channel.ChannelHandlerContext;
@@ -17,8 +18,8 @@ public interface INettyComponent {
     NettyPipeline getPipeline();
     void setPipeline(NettyPipeline pipeline);
 
-    void onConnect(ChannelHandlerContext ctx);
-    void onDisconnect(ChannelHandlerContext ctx);
+    void onConnect(NettyConnection ctx);
+    void onDisconnect(NettyConnection ctx);
 
     INettyComponent registerConnectionListener(ConnectionListener listener);
     INettyComponent unregisterConnectionListener(ConnectionListener listener);
