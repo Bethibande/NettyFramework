@@ -1,12 +1,14 @@
 package de.bethibande.netty.conection;
 
 import de.bethibande.netty.INettyComponent;
+import de.bethibande.netty.packets.CompletedPacketFuture;
 import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.PacketFuture;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
@@ -23,6 +25,10 @@ public class NativeNettyConnection implements NettyConnection {
         this.socket = socket;
     }
 
+    public Socket getSocket() {
+        return socket;
+    }
+
     @Override
     public INettyComponent getOwner() {
         return owner;
@@ -35,23 +41,41 @@ public class NativeNettyConnection implements NettyConnection {
 
     @Override
     public InetSocketAddress getAddress() {
-        return null;
+        return (InetSocketAddress) socket.getRemoteSocketAddress();
     }
 
     @Override
     public boolean isWritable() {
-        return false;
+        return true;
+    }
+
+    private synchronized void writeData(ByteBuf buf) throws IOException {
+        OutputStream out = socket.getOutputStream();
+
+        byte[] buffer = new byte[buf.readableBytes()];
+        buf.readBytes(buffer);
+
+        out.write(buffer);
+        out.flush();
+
+        buf.release();
     }
 
     @Override
-    public synchronized PacketFuture sendPacket(int channelId, INetSerializable packet) {
+    public PacketFuture sendPacket(int channelId, INetSerializable packet) {
         ByteBuf buf = Unpooled.buffer();
         buf.writeInt(channelId);
 
         this.owner.getPacketManager().writePacket(buf, packet);
 
-        // TODO: write data to socket
-        //return new PacketFuture(cf); // TODO: completed packet future class
+        try {
+            writeData(buf);
+        } catch(IOException e) {
+            e.printStackTrace();
+            return new CompletedPacketFuture(e);
+        }
+
+        return new CompletedPacketFuture();
     }
 
     @Override

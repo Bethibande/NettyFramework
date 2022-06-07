@@ -1,6 +1,7 @@
 package de.bethibande.netty.test;
 
 import de.bethibande.netty.ConnectionListenerAdapter;
+import de.bethibande.netty.client.NativeClient;
 import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.channels.ChannelListenerAdapter;
 import de.bethibande.netty.channels.NettyChannel;
@@ -17,7 +18,7 @@ import java.util.Scanner;
 public class EchoClient {
 
     public static String name;
-    public static NettyClient client;
+    public static NativeClient client;
 
     public static class ConnectionHandler extends ConnectionListenerAdapter {
 
@@ -56,8 +57,8 @@ public class EchoClient {
     }
 
     public static void main(String[] args) {
-        client = new NettyClient();
-        client.setAddress(new InetSocketAddress("127.0.0.1", 55557));
+        client = new NativeClient();
+        client.setBindAddress(new InetSocketAddress("127.0.0.1", 55557));
 
         client.registerChannel(new NettyPacketChannel(0));
         client.registerChannel(new NettyPacketChannel(1));

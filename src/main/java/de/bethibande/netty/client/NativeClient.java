@@ -5,10 +5,16 @@ import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
 import de.bethibande.netty.conection.ConnectionManager;
+import de.bethibande.netty.conection.NativeNettyConnection;
 import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
+import de.bethibande.netty.exceptions.UnknownChannelIdException;
+import de.bethibande.netty.packets.INetSerializable;
+import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
 import de.bethibande.netty.pipeline.NettyPipeline;
+import de.bethibande.netty.pipeline.StandardPipelineChannel;
+import de.bethibande.netty.server.tcp.NativeSocketReader;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -16,6 +22,9 @@ import java.net.Socket;
 import java.util.*;
 
 public class NativeClient implements INettyComponent {
+
+    public static final int TOS_FIELD = 0x04 | 0x10;
+    public static final int SO_TIMEOUT = 2500;
 
     private Socket socket = null;
     private InetSocketAddress bindAddress;
@@ -27,6 +36,12 @@ public class NativeClient implements INettyComponent {
     private final HashMap<Integer, NettyChannel> channels = new HashMap<>();
     private final HashMap<Integer, Collection<ChannelListener>> listeners = new HashMap<>();
     private final LinkedList<ConnectionListener> connectionListeners = new LinkedList<>();
+
+    private NativeSocketReader reader;
+
+    public NativeClient() {
+        pipeline.addPipelineChannel(new StandardPipelineChannel(pipeline));
+    }
 
     public NativeClient setBindAddress(InetSocketAddress bindAddress) {
         this.bindAddress = bindAddress;
@@ -44,12 +59,24 @@ public class NativeClient implements INettyComponent {
             socket.setKeepAlive(true);
             socket.setTcpNoDelay(true);
 
-            socket.setSoTimeout(5000);
+            socket.setSoTimeout(SO_TIMEOUT);
 
-            socket.setTrafficClass(0x04 | 0x10); // reliability and low delay flag
+            socket.setTrafficClass(TOS_FIELD);
+
+            NativeNettyConnection connection = new NativeNettyConnection(this, socket);
+            onConnect(connection);
+
+            reader = new NativeSocketReader(new ThreadGroup("ReaderGroup"), socket, this, connectionManager.getConnections().values().iterator().next());
+            reader.start();
         } catch(IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public PacketFuture sendPacket(int channelId, INetSerializable packet) {
+        if(!channels.containsKey(channelId)) throw new UnknownChannelIdException("There is no such channel with the id '" + channelId + "'!");
+
+        return connectionManager.getConnections().values().iterator().next().sendPacket(channelId, packet);
     }
 
     public boolean isAlive() {
@@ -58,14 +85,10 @@ public class NativeClient implements INettyComponent {
 
     @Override
     public void stop() {
-        if(isAlive()) throw new RuntimeException("Cannot stop offline service!");
+        if(!isAlive()) throw new RuntimeException("Cannot stop offline service!");
 
-        try {
-            socket.close();
-            socket = null;
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
+        reader.stopService();
+        socket = null;
     }
 
     @Override
@@ -79,13 +102,17 @@ public class NativeClient implements INettyComponent {
     }
 
     @Override
-    public void onConnect(NettyConnection con) {
-        connectionManager.registerConnection(con);
+    public void onConnect(NettyConnection connection) {
+        getConnectionManager().registerConnection(connection);
+
+        connectionListeners.forEach(listener -> listener.onConnect(connection));
     }
 
     @Override
-    public void onDisconnect(NettyConnection con) {
-        connectionManager.unregisterConnection(con.getAddress());
+    public void onDisconnect(NettyConnection connection) {
+        connectionListeners.forEach(listener -> listener.onDisconnect(connection));
+
+        getConnectionManager().unregisterConnection(connection.getAddress());
     }
 
     @Override

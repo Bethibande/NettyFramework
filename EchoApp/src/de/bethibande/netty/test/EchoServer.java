@@ -1,6 +1,5 @@
 package de.bethibande.netty.test;
 
-import de.bethibande.netty.ConnectionListener;
 import de.bethibande.netty.ConnectionListenerAdapter;
 import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.channels.ChannelListenerAdapter;
@@ -9,7 +8,7 @@ import de.bethibande.netty.channels.NettyPacketChannel;
 import de.bethibande.netty.packets.Packet;
 import de.bethibande.netty.packets.PacketManager;
 import de.bethibande.netty.packets.ReflectPacketFactory;
-import de.bethibande.netty.server.NettyServer;
+import de.bethibande.netty.server.NativeServer;
 import de.bethibande.netty.test.packets.AuthPacket;
 import de.bethibande.netty.test.packets.InvalidNamePacket;
 import de.bethibande.netty.test.packets.MessagePacket;
@@ -22,9 +21,9 @@ public class EchoServer {
 
     public static class ConnectionHandler extends ConnectionListenerAdapter {
 
-        private final NettyServer owner;
+        private final NativeServer owner;
 
-        public ConnectionHandler(NettyServer owner) {
+        public ConnectionHandler(NativeServer owner) {
             this.owner = owner;
         }
 
@@ -40,9 +39,9 @@ public class EchoServer {
 
     public static class AuthListener extends ChannelListenerAdapter {
 
-        private final NettyServer owner;
+        private final NativeServer owner;
 
-        public AuthListener(NettyServer owner) {
+        public AuthListener(NativeServer owner) {
             this.owner = owner;
         }
 
@@ -71,9 +70,9 @@ public class EchoServer {
 
     public static class MessageListener extends ChannelListenerAdapter {
 
-        private final NettyServer owner;
+        private final NativeServer owner;
 
-        public MessageListener(NettyServer owner) {
+        public MessageListener(NativeServer owner) {
             this.owner = owner;
         }
 
@@ -106,7 +105,7 @@ public class EchoServer {
     }
 
     public static void main(String[] args) {
-        NettyServer server = new NettyServer();
+        NativeServer server = new NativeServer();
         server.setPort(55557);
         server.registerChannel(new NettyPacketChannel(0)); // auth channel
         server.registerChannel(new NettyPacketChannel(1)); // message channel

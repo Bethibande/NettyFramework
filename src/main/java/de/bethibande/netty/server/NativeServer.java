@@ -4,20 +4,23 @@ import de.bethibande.netty.ConnectionListener;
 import de.bethibande.netty.INettyComponent;
 import de.bethibande.netty.channels.ChannelListener;
 import de.bethibande.netty.channels.NettyChannel;
+import de.bethibande.netty.client.NativeClient;
 import de.bethibande.netty.conection.ConnectionManager;
 import de.bethibande.netty.conection.NettyConnection;
 import de.bethibande.netty.exceptions.ChannelIdAlreadyInUseException;
+import de.bethibande.netty.exceptions.UnknownChannelIdException;
+import de.bethibande.netty.packets.INetSerializable;
+import de.bethibande.netty.packets.PacketFuture;
 import de.bethibande.netty.packets.PacketManager;
+import de.bethibande.netty.packets.SharedPacketFuture;
 import de.bethibande.netty.pipeline.NettyPipeline;
+import de.bethibande.netty.pipeline.StandardPipelineChannel;
+import de.bethibande.netty.server.tcp.ConnectionThread;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.*;
 
 public class NativeServer implements INettyComponent {
 
@@ -32,8 +35,14 @@ public class NativeServer implements INettyComponent {
     private final HashMap<Integer, Collection<ChannelListener>> listeners = new HashMap<>();
     private final LinkedList<ConnectionListener> connectionListeners = new LinkedList<>();
 
-    public NativeServer setBindAddress(InetSocketAddress bindAddress) {
-        this.bindAddress = bindAddress;
+    private ConnectionThread connectionThread;
+
+    public NativeServer() {
+        pipeline.addPipelineChannel(new StandardPipelineChannel(pipeline));
+    }
+
+    public NativeServer setPort(int port) {
+        this.bindAddress = new InetSocketAddress("0.0.0.0", port);
         return this;
     }
 
@@ -41,15 +50,40 @@ public class NativeServer implements INettyComponent {
         return bindAddress;
     }
 
+    public NativeServer setBindAddress(String address) {
+        this.bindAddress = new InetSocketAddress(address, this.bindAddress.getPort());
+        return this;
+    }
+
+    public NativeServer setBindAddress(InetSocketAddress address) {
+        this.bindAddress = address;
+        return this;
+    }
+
     @Override
     public void init() {
         try {
             socket = new ServerSocket(bindAddress.getPort(), 100, bindAddress.getAddress());
 
-            socket.setSoTimeout(5000);
+            socket.setSoTimeout(NativeClient.SO_TIMEOUT);
+
+            connectionThread = new ConnectionThread(this, socket);
+            connectionThread.start();
         } catch(IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public SharedPacketFuture broadcastPacket(int channelId, INetSerializable packet) {
+        if(!hasChannelId(channelId)) throw new UnknownChannelIdException("There is no channel with the id '" + channelId + "'!");
+
+        List<PacketFuture> futures = new ArrayList<>(); // TODO: improve performance
+        for(NettyConnection con : connectionManager.getConnections().values()) {
+            PacketFuture pf = con.sendPacket(channelId, packet);
+            futures.add(pf);
+        }
+
+        return new SharedPacketFuture(futures.toArray(PacketFuture[]::new));
     }
 
     public boolean isAlive() {
@@ -78,13 +112,19 @@ public class NativeServer implements INettyComponent {
     }
 
     @Override
-    public void onConnect(NettyConnection con) {
-        connectionManager.registerConnection(con);
+    public void onConnect(NettyConnection connection) {
+        getConnectionManager().registerConnection(connection);
+
+        connectionListeners.forEach(listener -> listener.onConnect(connection));
     }
 
     @Override
-    public void onDisconnect(NettyConnection con) {
-        connectionManager.unregisterConnection(con.getAddress());
+    public void onDisconnect(NettyConnection connection) {
+        getConnectionManager().unregisterConnection(connection.getAddress());
+
+        connectionListeners.forEach(listener -> listener.onDisconnect(connection));
+
+        connectionThread.onDisconnect(connection.getAddress());
     }
 
     @Override
