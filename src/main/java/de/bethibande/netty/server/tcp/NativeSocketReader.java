@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativeSocketReader extends Thread {
@@ -46,12 +47,12 @@ public class NativeSocketReader extends Thread {
         return connection;
     }
 
-    public void stopService() {
+    public synchronized void stopService() {
         stopping = true;
 
         try {
-            stopped.wait();
-        } catch (InterruptedException e) {
+            stopped.get();
+        } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
     }
@@ -62,6 +63,12 @@ public class NativeSocketReader extends Thread {
         while(!stopping) {
             try {
                 int read = socket.getInputStream().read(buffer);
+
+                if(read <= 0) {
+                    stopping = true;
+                    continue;
+                }
+
                 ByteBuf buf = Unpooled.copiedBuffer(buffer, 0, read);
 
                 NettyPipeline pipeline = owner.getPipeline();
