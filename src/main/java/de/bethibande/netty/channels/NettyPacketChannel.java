@@ -8,7 +8,6 @@ import de.bethibande.netty.packets.INetSerializable;
 import de.bethibande.netty.packets.Packet;
 import de.bethibande.netty.packets.PacketBuffer;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
 
 import java.util.Collection;
 
@@ -39,7 +38,13 @@ public class NettyPacketChannel implements NettyChannel {
 
         packet.read(PacketBuffer.wrap(buf.discardReadBytes().resetReaderIndex()));
 
-        listeners.forEach(channelListener -> channelListener.onPacketReceived(this, packet, con));
+        for(ChannelListener channelListener : listeners) {
+            try {
+                channelListener.onPacketReceived(this, packet, con);
+            } catch(Exception e) {
+                channelListener.onExceptionCaught(this, con, e);
+            }
+        }
     }
 
     @Override

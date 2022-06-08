@@ -56,6 +56,8 @@ public class PacketReader {
 
                 try {
                     owner.getOwner().getChannelById(channelId).channelRead(owner, read);
+                } catch(Exception e) {
+                    owner.getOwner().getChannelById(channelId).exceptionCaught(owner, e);
                 } finally {
                     read.release();
 
