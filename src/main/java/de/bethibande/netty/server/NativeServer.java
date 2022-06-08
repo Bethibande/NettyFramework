@@ -92,7 +92,7 @@ public class NativeServer implements INettyComponent {
 
     @Override
     public void stop() {
-        if(isAlive()) throw new RuntimeException("Cannot stop offline service!");
+        if(!isAlive()) throw new RuntimeException("Cannot stop offline service!");
 
         try {
             socket.close();

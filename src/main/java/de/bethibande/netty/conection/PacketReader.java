@@ -9,9 +9,9 @@ public class PacketReader {
 
     private final NettyConnection owner;
 
-    private Integer channelId = null;
-    private Integer length = null;
-    private ByteBuf read = null;
+    private volatile Integer channelId = null;
+    private volatile Integer length = null;
+    private volatile ByteBuf read = null;
 
     public PacketReader(NettyConnection owner) {
         this.owner = owner;
@@ -21,8 +21,8 @@ public class PacketReader {
         return owner;
     }
 
-    public void read(ByteBuf buf) throws Exception {
-        while(buf.readableBytes() > 0) {
+    public synchronized void read(ByteBuf buf) throws Exception {
+        while(buf.refCnt() > 0 && buf.readableBytes() > 0) {
             if (channelId == null) {
                 channelId = buf.readInt();
                 length = buf.readInt();
@@ -44,8 +44,7 @@ public class PacketReader {
 
             if (read != null) {
                 if (length - read.readableBytes() > buf.readableBytes()) read = read.writeBytes(buf);
-                if (length - read.readableBytes() < buf.readableBytes())
-                    read = read.writeBytes(buf, length - read.readableBytes());
+                if (length - read.readableBytes() <= buf.readableBytes()) read = read.writeBytes(buf, length - read.readableBytes());
             }
 
             if (read == null) return;

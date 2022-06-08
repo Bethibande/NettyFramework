@@ -59,13 +59,13 @@ public class NativeSocketReader extends Thread {
 
     @Override
     public void run() {
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[8192];
         while(!stopping) {
             try {
                 int read = socket.getInputStream().read(buffer);
 
                 if(read <= 0) {
-                    stopping = true;
+                    //stopping = true;
                     continue;
                 }
 
@@ -82,9 +82,10 @@ public class NativeSocketReader extends Thread {
             } catch(SocketTimeoutException e) {
 
             } catch(IOException e) {
-                if(e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection reset")) {
+                /*if(e.getMessage() != null && e.getMessage().equalsIgnoreCase("Connection reset")) {
                     stopping = true;
-                } else e.printStackTrace();
+                } else e.printStackTrace();*/
+                stopping = true;
             }
         }
 
